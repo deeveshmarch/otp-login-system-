@@ -1,0 +1,30 @@
+{
+    "admin1": {
+        "email": "deevesh.gurjoo1@umail.uom.ac.mu",
+        "password": "1234"
+    },
+    "admin2": {
+        "email": "deevesh.gurjoo@gmail.com",
+        "password": "1234"
+    },
+    "admin3": {
+        "email": "deevesh.gurjoo1@umail.uom.ac.mu",
+        "password": "1234"
+    },
+    "admin321": {
+        "email": "ritesh47748@gmail.com",
+        "password": "1234"
+    },
+    "admin4": {
+        "email": "ritesh47748@gmail.com",
+        "password": "1234"
+    },
+    "admin5": {
+        "email": "ritesh47748@gmail.com",
+        "password": "1234"
+    },
+    "admin10": {
+        "email": "deevesh.gurjoo1@umail.uom.ac.mu",
+        "password": "1234"
+    }
+}
