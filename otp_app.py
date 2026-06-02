@@ -4,14 +4,15 @@ import os
 import random
 import smtplib
 from email.mime.text import MIMEText
+import threading
 
 app = Flask(__name__)
 app.secret_key = "mfa_secret_key"
 
-# New database file
+# Database file
 DATA_FILE = "sara.json"
 
-# Your Gmail details
+# Gmail credentials
 EMAIL_ADDRESS = "ritesh47748@gmail.com"
 EMAIL_PASSWORD = "ehbe chvg miyt esgg"
 
@@ -24,8 +25,12 @@ def load_users():
     if not os.path.exists(DATA_FILE):
         return {}
 
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, "r") as f:
+            content = f.read().strip()
+            return json.loads(content) if content else {}
+    except:
+        return {}
 
 
 def save_users(users):
@@ -38,38 +43,37 @@ def save_users(users):
 # ----------------------------
 
 def send_email_otp(receiver_email, otp):
+    try:
+        subject = "Your MFA OTP Code"
 
-    subject = "Your MFA OTP Code"
-
-    body = f"""
+        body = f"""
 Hello,
 
-Your One-Time Password (OTP) is:
+Your OTP is:
 
 {otp}
 
-Please enter this code to complete your login.
+Do not share this code.
 
 Regards,
-MFA Authentication System
+MFA System
 """
 
-    msg = MIMEText(body)
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = EMAIL_ADDRESS
+        msg["To"] = receiver_email
 
-    msg["Subject"] = subject
-    msg["From"] = EMAIL_ADDRESS
-    msg["To"] = receiver_email
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        server.send_message(msg)
+        server.quit()
 
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
+        print("OTP sent successfully ✅")
 
-    server.login(
-        EMAIL_ADDRESS,
-        EMAIL_PASSWORD
-    )
-
-    server.send_message(msg)
-    server.quit()
+    except Exception as e:
+        print("Email error:", e)
 
 
 # ----------------------------
@@ -78,10 +82,9 @@ MFA Authentication System
 
 style = """
 <style>
-
 body{
     margin:0;
-    font-family:Arial, sans-serif;
+    font-family:Arial;
     background:linear-gradient(135deg,#1e3c72,#2a5298);
     height:100vh;
     display:flex;
@@ -128,7 +131,6 @@ a{
 .message{
     margin-top:15px;
 }
-
 </style>
 """
 
@@ -138,127 +140,62 @@ a{
 # ----------------------------
 
 register_page = style + """
-
 <div class="container">
-
 <h2>Create MFA Account</h2>
 
 <form method="POST">
-
-<input type="text"
-name="username"
-placeholder="Username"
-required>
-
-<input type="email"
-name="email"
-placeholder="Email Address"
-required>
-
-<input type="password"
-name="password"
-placeholder="Password"
-required>
-
+<input name="username" placeholder="Username" required>
+<input name="email" placeholder="Email" required>
+<input name="password" type="password" placeholder="Password" required>
 <br><br>
-
-<button type="submit">
-Register
-</button>
-
+<button type="submit">Register</button>
 </form>
 
 <p class="message">{{message}}</p>
-
 <a href="/">Back to Login</a>
-
 </div>
 """
 
 
 login_page = style + """
-
 <div class="container">
-
-<h2>MFA Login System</h2>
+<h2>MFA Login</h2>
 
 <form method="POST">
-
-<input type="text"
-name="username"
-placeholder="Username"
-required>
-
-<input type="password"
-name="password"
-placeholder="Password"
-required>
-
+<input name="username" placeholder="Username" required>
+<input name="password" type="password" placeholder="Password" required>
 <br><br>
-
-<button type="submit">
-Login
-</button>
-
+<button type="submit">Login</button>
 </form>
 
 <p class="message">{{message}}</p>
-
-<a href="/register">
-Create Account
-</a>
-
+<a href="/register">Create Account</a>
 </div>
 """
 
 
 otp_page = style + """
-
 <div class="container">
+<h2>OTP Verification</h2>
 
-<h2>Email Verification</h2>
-
-<p>
-A One-Time Password has been sent to your email.
-</p>
+<p>OTP sent to your email</p>
 
 <form method="POST">
-
-<input type="text"
-name="otp"
-placeholder="Enter OTP"
-required>
-
+<input name="otp" placeholder="Enter OTP" required>
 <br><br>
-
-<button type="submit">
-Verify OTP
-</button>
-
+<button type="submit">Verify</button>
 </form>
 
 <p class="message">{{message}}</p>
-
 </div>
 """
 
 
 success_page = style + """
-
 <div class="container">
-
-<h1>✅ Login Successful</h1>
-
+<h1>Login Successful ✅</h1>
 <h3>Welcome {{username}}</h3>
-
-<p>
-Multi-Factor Authentication completed successfully.
-</p>
-
-<a href="/">
-Logout
-</a>
-
+<a href="/">Logout</a>
 </div>
 """
 
@@ -269,36 +206,25 @@ Logout
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-
     message = ""
+    users = load_users()
 
     if request.method == "POST":
-
-        users = load_users()
-
         username = request.form["username"]
         email = request.form["email"]
         password = request.form["password"]
 
         if username in users:
-
             message = "User already exists ❌"
-
         else:
-
             users[username] = {
                 "email": email,
                 "password": password
             }
-
             save_users(users)
-
             message = "Account created successfully ✅"
 
-    return render_template_string(
-        register_page,
-        message=message
-    )
+    return render_template_string(register_page, message=message)
 
 
 # ----------------------------
@@ -307,91 +233,63 @@ def register():
 
 @app.route("/", methods=["GET", "POST"])
 def login():
-
     message = ""
+    users = load_users()
 
     if request.method == "POST":
-
-        users = load_users()
-
         username = request.form["username"]
         password = request.form["password"]
 
-        if (
-            username in users
-            and users[username]["password"] == password
-        ):
+        if username in users and users[username]["password"] == password:
 
-            otp = str(
-                random.randint(
-                    100000,
-                    999999
-                )
-            )
+            otp = str(random.randint(100000, 999999))
 
             session["otp"] = otp
             session["username"] = username
 
             email = users[username]["email"]
 
-            send_email_otp(
-                email,
-                otp
-            )
+            # 🔥 FIX: non-blocking email (prevents Render freezing)
+            threading.Thread(
+                target=send_email_otp,
+                args=(email, otp)
+            ).start()
 
             return redirect("/otp")
 
         else:
-
             message = "Invalid credentials ❌"
 
-    return render_template_string(
-        login_page,
-        message=message
-    )
+    return render_template_string(login_page, message=message)
 
 
 # ----------------------------
-# OTP PAGE
+# OTP VERIFY
 # ----------------------------
 
 @app.route("/otp", methods=["GET", "POST"])
 def otp():
+    if "username" not in session:
+        return redirect("/")
 
     message = ""
 
     if request.method == "POST":
+        entered = request.form["otp"]
 
-        entered_otp = request.form["otp"]
-
-        if entered_otp == session.get("otp"):
-
+        if entered == session.get("otp"):
             username = session.get("username")
-
-            return render_template_string(
-                success_page,
-                username=username
-            )
-
+            return render_template_string(success_page, username=username)
         else:
-
             message = "Incorrect OTP ❌"
 
-    return render_template_string(
-        otp_page,
-        message=message
-    )
+    return render_template_string(otp_page, message=message)
 
 
 # ----------------------------
-# RUN APP
+# RUN (RENDER SAFE)
 # ----------------------------
 
 if __name__ == "__main__":
-
-    print("Starting MFA Email Application...")
-
-import os
-
-if __name__ == "__main__":
+    print("Starting MFA App...")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
